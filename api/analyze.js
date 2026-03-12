@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
 
   if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
@@ -9,42 +9,56 @@ export default async function handler(req, res) {
     const rows = req.body.rows || [];
 
     const prompt = `
-Analiza esta tabla de productos y precios de proveedores.
+Analiza esta lista de productos y precios de proveedores.
 
 Datos:
 ${JSON.stringify(rows)}
 
-Devuelve:
-1. Diferencias relevantes de precio
-2. Productos donde SAG sea más competitivo
-3. Productos donde FOCUSS sea más competitivo
-4. Recomendaciones de compra
+Genera:
+1. Productos con mayor diferencia de precio
+2. Qué proveedor es más competitivo
+3. Recomendaciones de compra
 `;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "user", content: prompt }
-        ]
-      })
-    });
+    const openaiResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ]
+        })
+      }
+    );
 
-    const data = await response.json();
+    const data = await openaiResponse.json();
 
-    res.status(200).json({
+    if (!data.choices) {
+      return res.status(500).json({
+        error: "Error en OpenAI",
+        details: data
+      });
+    }
+
+    return res.status(200).json({
       analysis: data.choices[0].message.content
     });
 
   } catch (error) {
-    res.status(500).json({
+
+    return res.status(500).json({
       error: error.message
     });
+
   }
 
 }
